@@ -240,6 +240,10 @@ compileExp (BinopE op e1 e2) = do
 
     go AndB qe1 qe2 = [|$qe1 .&. $qe2|]
     go OrB  qe1 qe2 = [|$qe1 .|. $qe2|]
+    go XorB qe1 qe2 = [|$qe1 `xor` $qe2|]
+    go ShiftRB qe1 qe2 = [|$qe1 `shiftR` $qe2|]
+    go ShiftLB qe1 qe2 = [|$qe1 `shiftL` $qe2|]
+
 
     go QuotI qe1 qe2 = [|$qe1 `quot` $qe2|]
     go RemI  qe1 qe2 = [|$qe1 `rem` $qe2|]

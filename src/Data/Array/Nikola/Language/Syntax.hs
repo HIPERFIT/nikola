@@ -137,6 +137,9 @@ data Binop = -- Order operators
              -- Bitwise operators
            | AndB
            | OrB
+           | XorB
+           | ShiftRB
+           | ShiftLB
 
             -- Integral operators
            | QuotI
@@ -392,6 +395,9 @@ lorPrec = 2
 bandPrec :: Int
 bandPrec = 7
 
+bxorPrec :: Int
+bxorPrec = 6
+
 borPrec :: Int
 borPrec = 5
 
@@ -480,6 +486,9 @@ instance Pretty Binop where
 
     ppr AndB = text "&"
     ppr OrB  = text "|"
+    ppr XorB = text "`xor`"
+    ppr ShiftRB  = text "`shiftR`"
+    ppr ShiftLB  = text "`shiftL`"
 
     ppr QuotI = text "`quot`"
     ppr RemI  = text "`rem`"
@@ -537,6 +546,9 @@ instance HasFixity Binop where
 
     fixity AndB = infixl_ bandPrec
     fixity OrB  = infixl_ borPrec
+    fixity XorB = infixl_ bxorPrec
+    fixity ShiftRB = infixl_ 10
+    fixity ShiftLB = infixl_ 10
 
     fixity QuotI = infixl_ mulPrec
     fixity RemI  = infixl_ mulPrec

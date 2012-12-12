@@ -251,6 +251,9 @@ inferBinop =
 
     go AndB tau1 tau2     = joinIntT tau1 tau2
     go OrB  tau1 tau2     = joinIntT tau1 tau2
+    go XorB tau1 tau2     = joinIntT tau1 tau2
+    go ShiftRB tau1 tau2  | isIntT tau1 && isIntT tau2 = return tau1
+    go ShiftLB tau1 tau2  | isIntT tau1 && isIntT tau2 = return tau1
 
     go QuotI tau1 tau2    = joinIntT tau1 tau2
     go RemI  tau1 tau2    = joinIntT tau1 tau2

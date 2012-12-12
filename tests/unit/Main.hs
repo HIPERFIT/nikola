@@ -26,6 +26,7 @@ import qualified Funs
 
 import Control.Applicative
 import Data.Int
+import qualified Data.Bits
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
@@ -72,6 +73,9 @@ tests :: [Test]
 tests = [ id_test
         , map_test
         , map_inc_test
+        , zipWith_shiftL_test
+        , zipWith_shiftR_test
+        , zipWith_xor_test
         , zip_test
         , scalar_test
         , swap_test
@@ -124,6 +128,20 @@ map_inc_test = testCase "map inc" $
 
     g :: V.Vector Int32 -> V.Vector Int32
     g = NH.compile f
+
+
+zipWithTestBinOp name op opNikola = testCase ("zipWith " ++ name) $
+    g (V.fromList [1..10]) (V.fromList [1..10]) @=? V.zipWith op (V.fromList [1..10]) (V.fromList [1..10])
+  where
+    f ::  N.Array N.G N.DIM1 (N.Exp Int32) -> N.Array N.G N.DIM1 (N.Exp Int32) -> N.Array N.D N.DIM1 (N.Exp Int32)
+    f v = N.zipWith opNikola v
+
+    g :: V.Vector Int32 -> V.Vector Int32 -> V.Vector Int32
+    g = NH.compile f
+
+zipWith_shiftL_test = zipWithTestBinOp "shiftL" Data.Bits.shiftL N.shiftL
+zipWith_shiftR_test = zipWithTestBinOp "shiftR" Data.Bits.shiftR N.shiftR
+zipWith_xor_test = zipWithTestBinOp "xor" Data.Bits.xor N.xor
 
 zip_test :: Test
 zip_test = testCase "zip" $

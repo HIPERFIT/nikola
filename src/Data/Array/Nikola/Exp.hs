@@ -193,6 +193,7 @@ e1 ||* e2 = binop (BinopE OrL) e1 e2
 
 -- | Embedded versions of bit-wise operators
 infixl 7 &*
+infixl 6 `xor`
 infixl 5 |*
 
 class Bits a => IsBits a where
@@ -201,6 +202,15 @@ class Bits a => IsBits a where
 
     (|*) :: Bits a => Exp t a -> Exp t a -> Exp t a
     e1 |* e2 = binop (BinopE OrB) e1 e2
+    
+    xor :: Bits a => Exp t a -> Exp t a -> Exp t a
+    e1 `xor` e2 = binop (BinopE XorB) e1 e2
+    
+    shiftR :: Bits a => Exp t a -> Exp t a -> Exp t a
+    e1 `shiftR` e2 = binop (BinopE ShiftRB) e1 e2
+
+    shiftL :: Bits a => Exp t a -> Exp t a -> Exp t a
+    e1 `shiftL` e2 = binop (BinopE ShiftLB) e1 e2
 
 instance IsBits Int8
 instance IsBits Int16

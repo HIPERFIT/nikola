@@ -279,6 +279,9 @@ compileExp (BinopE op e1 e2) = do
 
     go AndB _ ce1 ce2 = [cexp|$ce1 & $ce2|]
     go OrB  _ ce1 ce2 = [cexp|$ce1 | $ce2|]
+    go XorB _ ce1 ce2 = [cexp|$ce1 ^ $ce2|]
+    go ShiftRB  _ ce1 ce2 = [cexp|$ce1 >> $ce2|]
+    go ShiftLB  _ ce1 ce2 = [cexp|$ce1 << $ce2|]
 
     go QuotI _ ce1 ce2 = [cexp|$ce1 / $ce2|]
     go RemI  _ ce1 ce2 = [cexp|$ce1 % $ce2|]
