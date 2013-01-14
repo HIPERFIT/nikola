@@ -365,11 +365,13 @@ inferExp = go
         void $ checkMT tau
         return tau
 
+    {-
     go (ParE p1 p2) = do
         void $ inferExp p1 >>= checkMT
         tau <- inferExp p2
         void $ checkMT tau
         return tau
+    -}
 
     go (BindE v tau p1 p2) = do
         tau' <- inferExp p1 >>= checkMT

@@ -1,4 +1,4 @@
-name:           nikola
+name:           nikola-hiperfit
 version:        0.9
 cabal-version:  >= 1.10
 license:        BSD3

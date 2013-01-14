@@ -267,10 +267,12 @@ compileExp (SeqE m1 m2) = do
     qm2 <- compileExp m2
     return [|$qm1 >> $qm2|]
 
+{- Removed ParE..
 compileExp (ParE m1 m2) = do
     qm1 <- compileExp m1
     qm2 <- compileExp m2
     return [|$qm1 >> $qm2|]
+-}
 
 compileExp (BindE v tau m1 m2) = do
     qm1 <- compileExp m1

@@ -347,9 +347,11 @@ compileExp (SeqE m1 m2) = do
     compileExp m1
     compileExp m2
 
+{- Old relic.
 compileExp (ParE m1 m2) = do
     compileExp m1
     compileExp m2
+    -}
 
 compileExp (BindE v tau m1 m2) = do
     ce1 <- compileExp m1
