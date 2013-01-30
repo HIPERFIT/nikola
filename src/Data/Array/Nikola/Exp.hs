@@ -45,6 +45,9 @@ module Data.Array.Nikola.Exp (
     -- * Helpers
     varE, voidE,
 
+    -- * Execution specification
+    -- sequential,
+
     Lift(..),
     Unlift(..),
 
@@ -80,6 +83,12 @@ instance Ord a => Ord (Var t a) where
 -- | Embedded language expressions
 newtype Exp t a = E { unE :: S.Exp }
   deriving (Typeable)
+
+-- | Denote an expression to be evaluated sequentially, With the effect that if
+-- possible, the immediately surrounding loop or higher order construct will be
+-- executed in parallel.
+-- sequential :: Exp t a -> Exp t a
+-- sequential = E . SequentialExecE . unE
 
 instance Eq a => Eq (Exp t a) where
     _ == _ = error " (==) Exp: incomparable"

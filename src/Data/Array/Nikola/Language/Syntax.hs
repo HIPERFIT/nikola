@@ -299,7 +299,7 @@ data Exp = VarE Var
          | IterateWhileE Exp Exp Exp
 
          -- | Mark an expression for sequential execution.
-         | Sequential Exp
+         -- | SequentialExecE Exp
          | ForE ForLoop [Var] [Exp] Exp
 
          | SyncE
@@ -831,3 +831,8 @@ instance Pretty ForLoop where
     ppr SeqFor      = text "for"
     ppr ParFor      = text "parfor"
     ppr IrregParFor = text "iparfor"
+
+-- random experiments
+
+-- data dependent allocation
+
