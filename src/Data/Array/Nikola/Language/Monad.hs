@@ -122,7 +122,7 @@ instance MonadCont (R r) where
     callCC f = R $ \s k -> unR (f (\a -> R $ \s _ -> k s a)) s k
 
 reset :: R a a -> R r a
-reset m = R $ \s k -> do  (s', x) <- unR m s $ \s' x -> return (s', x)
+reset m = R $ \s k -> do  (s', x) <- runR m s
                           k s' x
 
 shift :: ((a -> R r r) -> R r r) -> R r a

@@ -254,6 +254,9 @@ compileExp (BinopE op e1 e2) = do
 
     go AndB m1 m2 = liftBits (.&.) m1 m2
     go OrB  m1 m2 = liftBits (.|.) m1 m2
+    go XorB m1 m2 = liftBits xor m1 m2
+    go ShiftRB  m1 m2 = liftShifts shiftR m1 m2
+    go ShiftLB  m1 m2 = liftShifts shiftL m1 m2
 
     go QuotI m1 m2 = liftIntegral quot m1 m2
     go RemI  m1 m2 = liftIntegral rem  m1 m2

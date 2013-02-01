@@ -54,7 +54,7 @@ module Data.Array.Nikola.Language.Syntax (
     splitLamE,
 
     seqE,
-    parE,
+    -- parE,
     bindE,
     syncE
 ) where
@@ -137,6 +137,9 @@ data Binop = -- Order operators
              -- Bitwise operators
            | AndB
            | OrB
+           | XorB
+           | ShiftRB
+           | ShiftLB
 
             -- Integral operators
            | QuotI
@@ -283,7 +286,7 @@ data Exp = VarE Var
 
          | ReturnE Exp
          | SeqE Exp Exp
-         | ParE Exp Exp
+         -- | ParE Exp Exp
          | BindE Var Type Exp Exp
 
          | AllocE Type [Exp]
@@ -295,6 +298,8 @@ data Exp = VarE Var
          | IterateE Exp Exp Exp
          | IterateWhileE Exp Exp Exp
 
+         -- | Mark an expression for sequential execution.
+         -- | SequentialExecE Exp
          | ForE ForLoop [Var] [Exp] Exp
 
          | SyncE
@@ -357,7 +362,7 @@ splitLamE (LamE vtaus e) = (vtaus, e)
 splitLamE e              = ([], e)
 
 -- | Smart constructors to keep monads in normal form
-infixl 1  `seqE`, `parE`, `syncE`
+infixl 1  `seqE`, `syncE` -- , `parE`
 
 seqE :: Exp -> Exp -> Exp
 seqE (ReturnE {})        m  = m
@@ -366,10 +371,12 @@ seqE (LetE v tau _ e m1) m2 = letE v tau e (seqE m1 m2)
 seqE (BindE v tau m1 m2) m3 = bindE v tau m1 (seqE m2 m3)
 seqE m1                  m2 = SeqE m1 m2
 
+{- Old relic
 parE :: Exp -> Exp -> Exp
 parE (ReturnE {}) m  = m
 parE (ParE m1 m2) m3 = parE m1 (parE m2 m3)
 parE m1           m2 = ParE m1 m2
+-}
 
 bindE :: Var -> Type -> Exp -> Exp -> Exp
 bindE v  tau  (SeqE m1 m2) m3          = seqE m1 (bindE v tau m2 m3)
@@ -391,6 +398,9 @@ lorPrec = 2
 
 bandPrec :: Int
 bandPrec = 7
+
+bxorPrec :: Int
+bxorPrec = 6
 
 borPrec :: Int
 borPrec = 5
@@ -480,6 +490,9 @@ instance Pretty Binop where
 
     ppr AndB = text "&"
     ppr OrB  = text "|"
+    ppr XorB = text "`xor`"
+    ppr ShiftRB  = text "`shiftR`"
+    ppr ShiftLB  = text "`shiftL`"
 
     ppr QuotI = text "`quot`"
     ppr RemI  = text "`rem`"
@@ -537,6 +550,9 @@ instance HasFixity Binop where
 
     fixity AndB = infixl_ bandPrec
     fixity OrB  = infixl_ borPrec
+    fixity XorB = infixl_ bxorPrec
+    fixity ShiftRB = infixl_ 10
+    fixity ShiftLB = infixl_ 10
 
     fixity QuotI = infixl_ mulPrec
     fixity RemI  = infixl_ mulPrec
@@ -707,8 +723,10 @@ instance Pretty Exp where
     pprPrec p e@(SeqE {}) =
         pprMonadic p e
 
+    {-
     pprPrec p e@(ParE {}) =
         pprMonadic p e
+    -}
 
     pprPrec p e@(BindE {}) =
         pprMonadic p e
@@ -780,8 +798,10 @@ pprMonadic _ e =
     go (SeqE m1 m2) =
         ppr m1 : go m2
 
+{-
     go (ParE m1 m2) =
         [align (ppr m1 </> text "||" </> ppr m2)]
+        -}
 
     go (BindE v tau m1 m2) =
         (ppr (v, tau) <+> text "<-" <+/> nest 2 (ppr m1)) : go m2
@@ -811,3 +831,8 @@ instance Pretty ForLoop where
     ppr SeqFor      = text "for"
     ppr ParFor      = text "parfor"
     ppr IrregParFor = text "iparfor"
+
+-- random experiments
+
+-- data dependent allocation
+

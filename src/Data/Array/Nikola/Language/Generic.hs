@@ -88,7 +88,7 @@ instance TraversableFamily AST where
 
         go ExpA (ReturnE e)             = ReturnE <$> trav ExpA e
         go ExpA (SeqE p1 p2)            = SeqE <$> trav ExpA p1 <*> trav ExpA p2
-        go ExpA (ParE p1 p2)            = ParE <$> trav ExpA p1 <*> trav ExpA p2
+        --go ExpA (ParE p1 p2)            = ParE <$> trav ExpA p1 <*> trav ExpA p2
         go ExpA (BindE v tau p1 p2)     = BindE v tau <$> trav ExpA p1 <*> trav ExpA p2
 
         go ExpA (AllocE tau sh)         = AllocE tau <$> traverse (trav ExpA) sh

@@ -68,6 +68,19 @@ instance (Typeable r,
         AGlobal _ arr <- computeP arr
         returnK $ E arr
 
+-- dybberplc: (probably not entirely right, but it's the missing case if we
+-- want both a `Compilable` instance and `Reifiable` instance for arrays inside
+-- the `P` monad.
+instance (Shape sh,
+          IsElem a,
+          Typeable r,
+          Load r sh a)
+      => Reifiable (P (Array r sh a)) S.Exp where
+    reify m = do
+        arr <- m
+        AGlobal _ arr <- computeP arr -- errors observed probably stem from here.. try delayed instead?
+        returnK $ E arr
+
 instance (Shape sh,
           IsElem a)
       => Reifiable (P (Array G sh a)) S.Exp where

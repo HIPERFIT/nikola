@@ -45,6 +45,9 @@ module Data.Array.Nikola.Exp (
     -- * Helpers
     varE, voidE,
 
+    -- * Execution specification
+    -- sequential,
+
     Lift(..),
     Unlift(..),
 
@@ -80,6 +83,12 @@ instance Ord a => Ord (Var t a) where
 -- | Embedded language expressions
 newtype Exp t a = E { unE :: S.Exp }
   deriving (Typeable)
+
+-- | Denote an expression to be evaluated sequentially, With the effect that if
+-- possible, the immediately surrounding loop or higher order construct will be
+-- executed in parallel.
+-- sequential :: Exp t a -> Exp t a
+-- sequential = E . SequentialExecE . unE
 
 instance Eq a => Eq (Exp t a) where
     _ == _ = error " (==) Exp: incomparable"
@@ -193,6 +202,7 @@ e1 ||* e2 = binop (BinopE OrL) e1 e2
 
 -- | Embedded versions of bit-wise operators
 infixl 7 &*
+infixl 6 `xor`
 infixl 5 |*
 
 class Bits a => IsBits a where
@@ -201,6 +211,15 @@ class Bits a => IsBits a where
 
     (|*) :: Bits a => Exp t a -> Exp t a -> Exp t a
     e1 |* e2 = binop (BinopE OrB) e1 e2
+    
+    xor :: Bits a => Exp t a -> Exp t a -> Exp t a
+    e1 `xor` e2 = binop (BinopE XorB) e1 e2
+    
+    shiftR :: Bits a => Exp t a -> Exp t a -> Exp t a
+    e1 `shiftR` e2 = binop (BinopE ShiftRB) e1 e2
+
+    shiftL :: Bits a => Exp t a -> Exp t a -> Exp t a
+    e1 `shiftL` e2 = binop (BinopE ShiftLB) e1 e2
 
 instance IsBits Int8
 instance IsBits Int16

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -19,6 +20,7 @@ module Data.Array.Nikola.Repr.Push (
     Array(..),
 
     mkPushArray,
+    unfoldPushArray,
     push
   ) where
 
@@ -29,6 +31,7 @@ import Data.Array.Nikola.Eval
 import Data.Array.Nikola.Program
 import Data.Array.Nikola.Shape
 
+import Data.Array.Nikola.Exp
 import Data.Array.Nikola.Language.Monad
 import Data.Array.Nikola.Language.Syntax hiding (Var, Exp)
 
@@ -58,6 +61,31 @@ mkPushArray sh f = APush sh m
     m :: P (sh, a)
     m = do  i <- parfor sh
             return (i, f i)
+
+-- | Construct a push array from a seed and a successor function.
+unfoldPushArray ::
+  forall sh a t .
+  Shape sh   =>
+  IsElem (Exp t a) =>
+  Typeable a =>
+    sh ->
+    Exp t a ->
+    (sh -> Exp t a -> Exp t a) ->
+    Array PSH sh (Exp t a)
+unfoldPushArray sh x f = APush sh m
+  where
+    m :: P (sh, Exp t a)
+    m = shift $ \k -> do -- k may for instance be the contents of loadP..
+      vX <- gensym "x"
+      loop <- reset $ do
+        i <- seqfor sh
+        body <- k (i, varE $ V vX)
+        return $ (bindE vX tau (ReturnE $ unE $ f i (varE $ V vX)) body) -- $ ReturnE UnitE)
+        --          `seqE` body
+      return $ bindE vX tau (ReturnE $ unE x) loop
+
+    tau :: Type
+    tau = ScalarT $ typeOf (undefined :: Exp t a)
 
 -- | Convert an array into a push array.
 push :: (Shape sh, Source r e)

@@ -25,6 +25,7 @@ module Data.Array.Nikola.Backend.CUDA.Haskell.Ex
     , liftNum
     , liftIntegral
     , liftBits
+    , liftShifts
     , liftFractional
     , liftFloating
 
@@ -218,6 +219,26 @@ liftBits op m1 m2 = do
     go (Word64V n1) (Word64V n2) = return $ Word64V (op n1 n2)
     go v1           v2           = faildoc $
                                    text "liftBits:" <+> ppr v1 <+> ppr v2
+
+liftShifts :: forall m . Monad m
+         => (forall a . Bits a => a -> Int -> a)
+         -> m Val -> m Val -> m Val
+liftShifts op m1 m2 = do
+    v1 <- m1
+    v2 <- m2
+    go v1 v2
+  where
+    go :: Val -> Val -> m Val
+    go (Int8V n1)   (Int8V n2)   = return $ Int8V   (op n1 $ fromIntegral n2)
+    go (Int16V n1)  (Int16V n2)  = return $ Int16V  (op n1 $ fromIntegral n2)
+    go (Int32V n1)  (Int32V n2)  = return $ Int32V  (op n1 $ fromIntegral n2)
+    go (Int64V n1)  (Int64V n2)  = return $ Int64V  (op n1 $ fromIntegral n2)
+    go (Word8V n1)  (Word8V n2)  = return $ Word8V  (op n1 $ fromIntegral n2)
+    go (Word16V n1) (Word16V n2) = return $ Word16V (op n1 $ fromIntegral n2)
+    go (Word32V n1) (Word32V n2) = return $ Word32V (op n1 $ fromIntegral n2)
+    go (Word64V n1) (Word64V n2) = return $ Word64V (op n1 $ fromIntegral n2)
+    go v1           v2           = faildoc $
+                                   text "liftShifts:" <+> ppr v1 <+> ppr v2
 
 liftFractional :: forall m . Monad m
                => (forall a . Fractional a => a -> a -> a)

@@ -77,8 +77,11 @@ class (Typeable sh) => Shape sh where
     -- | Convert a list of dimensions to a shape
     shapeOfList :: [Exp t Ix] -> sh
 
-    -- | Shape-polymorphic for
+    -- | Shape-polymorphic for (plc: peculiarly similar to parfor..)
     for :: sh -> P sh
+
+    -- | Sequentially dependent for loop
+    seqfor :: sh -> P sh
 
     -- | Shape-polymorphic parallel for
     parfor :: sh -> P sh
@@ -110,6 +113,8 @@ instance Shape Z where
     shapeOfList _  = error "shapeOfList: non-empty list when converting to Z"
 
     for _ = return Z
+
+    seqfor _ = return Z
 
     parfor _ = return Z
 
@@ -163,15 +168,28 @@ instance (Shape sh, IsElem (Exp t Ix)) => Shape (sh :. Exp t Ix) where
         tau :: ScalarType
         tau = typeOf (undefined :: Exp t Ix)
 
+    seqfor (sh:.(n :: Exp t Ix)) = do
+        is <- parfor sh
+        v  <- gensym "i"
+        shift $ \k -> do
+          p <- reset $ extendVarTypes [(v, ScalarT tau)] $
+                           k (is:.E (VarE v))
+          case p of
+            ForE ParFor vs is' e -> return $ ForE SeqFor (vs ++ [v]) (is' ++ [unE n]) e
+            e                    -> return $ ForE SeqFor [v] [unE n] e
+      where
+        tau :: ScalarType
+        tau = typeOf (undefined :: Exp t Ix)
+
     parfor (sh:.(n :: Exp t Ix)) = do
         is <- parfor sh
         v  <- gensym "i"
         shift $ \k -> do
-        p <- reset $ extendVarTypes [(v, ScalarT tau)] $
-                         k (is:.E (VarE v))
-        case p of
-          ForE ParFor vs is' e -> return $ ForE ParFor (vs ++ [v]) (is' ++ [unE n]) e
-          e                    -> return $ ForE ParFor [v] [unE n] e
+          p <- reset $ extendVarTypes [(v, ScalarT tau)] $
+                           k (is:.E (VarE v))
+          case p of
+            ForE ParFor vs is' e -> return $ ForE ParFor (vs ++ [v]) (is' ++ [unE n]) e
+            e                    -> return $ ForE ParFor [v] [unE n] e
       where
         tau :: ScalarType
         tau = typeOf (undefined :: Exp t Ix)

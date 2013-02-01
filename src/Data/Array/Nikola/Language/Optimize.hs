@@ -227,7 +227,7 @@ whenE e p = IfThenElseE (unE e) p (ReturnE UnitE)
 -- Convert monadic actions to a normal form
 data SeqM = LetM Var Type
           | SeqM
-          | ParM
+          | ParM -- Should this also be removed when removing ParE?
           | BindM Var Type
 
 instance Pretty SeqM where
@@ -250,18 +250,20 @@ toMnf (LetE v tau _ e m)            = (LetM v tau, e) : toMnf m
 
 toMnf (SeqE (ReturnE {}) m)         = toMnf m
 toMnf (SeqE (SeqE m1 m2) m3)        = toMnf (SeqE m1 (SeqE m2 m3))
-toMnf (SeqE (ParE m1 m2) m3)        = toMnf (SeqE m1 (ParE m2 m3))
+-- toMnf (SeqE (ParE m1 m2) m3)        = toMnf (SeqE m1 (ParE m2 m3))
 toMnf (SeqE (BindE v tau m1 m2) m3) = toMnf (BindE v tau m1 (SeqE m2 m3))
 toMnf (SeqE m1 m2)                  = (SeqM, m1) : toMnf m2
 
+{-
 toMnf (ParE (ReturnE {}) m)         = toMnf m
 toMnf (ParE (SeqE m1 m2) m3)        = toMnf (ParE m1 (SeqE m2 m3))
 toMnf (ParE (ParE m1 m2) m3)        = toMnf (ParE m1 (ParE m2 m3))
 toMnf (ParE (BindE v tau m1 m2) m3) = toMnf (BindE v tau m1 (ParE m2 m3))
 toMnf (ParE m1 m2)                  = (ParM, m1) : toMnf m2
+-}
 
 toMnf (BindE v tau (SeqE m1 m2) m3) = toMnf (SeqE m1 (BindE v tau m2 m3))
-toMnf (BindE v tau (ParE m1 m2) m3) = toMnf (ParE m1 (BindE v tau m2 m3))
+-- toMnf (BindE v tau (ParE m1 m2) m3) = toMnf (ParE m1 (BindE v tau m2 m3))
 toMnf (BindE v2 tau2
           (BindE v1 tau1 m1 m2) m3) = toMnf (BindE v1 tau1 m1 (BindE v2 tau2 m2 m3))
 toMnf (BindE v tau m1 m2)           = (BindM v tau, m1) : toMnf m2
@@ -277,7 +279,7 @@ fromMnf [(BindM {}, _)] = error "fromMnf: last action is a bind"
 
 fromMnf ((LetM v tau, e) :ms) = LetE v tau Many e $ fromMnf ms
 fromMnf ((SeqM, m)       :ms) = SeqE m $ fromMnf ms
-fromMnf ((ParM, m)       :ms) = ParE m $ fromMnf ms
+-- fromMnf ((ParM, m)       :ms) = ParE m $ fromMnf ms
 fromMnf ((BindM v tau, m):ms) = BindE v tau m $ fromMnf ms
 
 -- Normalize monadic actions
@@ -288,7 +290,7 @@ norm ExpA (VarE v) = lookupSubst VarA v ExpA (VarE <$> norm VarA v)
 
 norm ExpA (SeqE (ReturnE {}) m)                    = norm ExpA m
 norm ExpA (SeqE (SeqE m1 m2) m3)                   = norm ExpA (SeqE m1 (SeqE m2 m3))
-norm ExpA (ParE (ParE m1 m2) m3)                   = norm ExpA (ParE m1 (ParE m2 m3))
+--norm ExpA (ParE (ParE m1 m2) m3)                   = norm ExpA (ParE m1 (ParE m2 m3))
 norm ExpA (SeqE (BindE v tau m1 m2) m3)            = norm ExpA (BindE v tau m1 (SeqE m2 m3))
 norm ExpA (SeqE m1 (ReturnE UnitE))                = do  m1' <- norm ExpA m1
                                                          tau <- inferExp m1' >>= checkMT
@@ -547,7 +549,7 @@ mergeBounds ExpA (ForE ParFor vs es p) = do
         go ((seq2, IfThenElseE e1 (p1a `seq'` p2a) (p1b `seq'` p2b)):ms)
       where
         seq' = case seq1 of
-                 ParM -> parE
+                 -- ParM -> parE
                  _    -> seqE
 
     go ((seq1, IfThenElseE e1 p1a p1b):(_, SyncE):(seq3, IfThenElseE e2 p2a p2b):ms)
