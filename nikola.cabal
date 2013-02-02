@@ -90,7 +90,6 @@ library
     Data.Array.Nikola.Util.Quote
     Data.Array.Nikola.Util.Statistics
     Data.Array.Nikola.Util.Random
-    Data.Array.Nikola.Playground
     Data.Array.Repa.Mutable
     Data.Array.Repa.Repr.CUDA.ForeignPtr
     Data.Array.Repa.Repr.CUDA.UnboxedForeign

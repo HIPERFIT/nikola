@@ -1,10 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Module      : Data.Array.Nikola.Repr.Push
@@ -64,8 +65,8 @@ mkPushArray sh f = APush sh m
 
 -- | Construct a push array from a seed and a successor function.
 unfoldPushArray ::
-  forall sh a t .
-  Shape sh   =>
+  forall sh t a .
+  Shape sh =>
   IsElem (Exp t a) =>
   Typeable a =>
     sh ->
@@ -80,12 +81,34 @@ unfoldPushArray sh x f = APush sh m
       loop <- reset $ do
         i <- seqfor sh
         body <- k (i, varE $ V vX)
-        return $ (bindE vX tau (ReturnE $ unE $ f i (varE $ V vX)) body) -- $ ReturnE UnitE)
-        --          `seqE` body
+        return $ (bindE vX tau (ReturnE $ unE $ f i (varE $ V vX)) body)
       return $ bindE vX tau (ReturnE $ unE x) loop
 
     tau :: Type
     tau = ScalarT $ typeOf (undefined :: Exp t a)
+
+-- | @mapNest n f src@ applies @f@ to every cell in @src@, yielding an extra
+-- dimension. Each application of @f@ had better produce arrays of the same
+-- length: @n@. Note that even though this is defined for Push arrays, delayed
+-- arrays are easily convertible to Push arrays by means of 'mkPushArray'.
+mapNest ::
+  forall sh t a b r.
+  Shape sh =>
+  IsElem a =>
+  IsElem b =>
+    Exp t Ix ->
+    (sh -> a -> Array PSH (Z :. Exp t Ix) b) ->
+    Array PSH sh a ->
+    Array PSH (sh :. Exp t Ix) b
+mapNest n f src = APush (extent src :. n) m
+  where
+    m :: P (sh :. Exp t Ix, b)
+    m = do
+      let APush srcSh srcM = src
+      (i, x) <- srcM
+      let APush fSh fM = f i x
+      (Z :. j, fX) <- fM
+      return (i :. j, fX)
 
 -- | Convert an array into a push array.
 push :: (Shape sh, Source r e)
