@@ -1,15 +1,74 @@
 {-# LANGUAGE RebindableSyntax #-}
 -- | This is as small space for our various experiments with extending Nikola.
 
-module Data.Array.Nikola.Playground where
+module Playground where
 
-import Data.Array.Nikola.Repr.Global
+import Data.Array.Nikola.Repr.Global as G
 --import Data.Array.Nikola.Exp as E
 import Data.Int(Int32)
-import Data.Array.Nikola.Backend.CUDA
+import Data.Array.Nikola.Backend.CUDA as C
 import qualified Data.Array.Nikola.Language.Syntax as S
 import Prelude hiding (fromIntegral)
 import Data.Array.Nikola.Combinators
+import Data.Array.Nikola.Exp as E
+import Data.Array.Nikola.Backend.CUDA.Haskell as H
+
+import qualified Data.Array.Repa as R
+import qualified Data.Array.Repa.Repr.CUDA.UnboxedForeign as R
+import Data.Vector.CUDA.Storable as CS
+
+-- * Tests of extensions. Potentially to be graduated to unit tests
+
+-- ** Unfoldn:
+
+-- This won't compile, because Nikola assumes that there are no 'ForE's after
+-- optimization (parfors are turned into cuda kernels.)
+unfold1 :: C.Exp Int32 -> Array PSH (Z :. C.Exp Ix) (C.Exp Int32)
+unfold1 x = unfoldPushArray (Z :. 10) x (\ (Z :. i) x' ->i + x' + 1) -- initial value x should really be the last argument.
+
+-- ** mapNest:
+
+-- This should be compilable, as mapNest produces a parfor. (so it should be
+-- compilable if CUDA code generation has a case for 'ForE SeqFor')
+
+map1 :: C.Exp Int32 -> Array PSH (Z :. C.Exp Ix :. C.Exp Ix) (C.Exp Int32)
+map1 x = mapNest 10 (const unfold1)
+          (mkPushArray (Z :. 10) (\ (Z :. i) -> x + i * 10))
+
+-- Behold! now we may actually write:
+
+-- sobol :: C.Exp Int32 -> C.Exp Int32 -> ...
+-- sobol m n = mapNest ( \sh s0 -> unfoldPushArray (Z:. n) s0 (sobolJumpRec m dirVs) )
+--                     (fromFunction
+--                       (Z :. m)
+--                       (\ (Z :. i) -> sobolInd dirVs i))
+
+-- where 'm' is jump size and 'n' is the number of jumps to do. I.e., create
+-- m*n sobol numbers.
+
+-- This should go wrong one way or another: (It does however seem to work, by
+-- exploiting the two-dimensional block layout provided by nvidia, i.e. by
+-- allocating more threads)
+
+map2 :: C.Exp Int32 -> Array PSH (Z :. C.Exp Ix :. C.Exp Ix) (C.Exp Int32)
+map2 x = mapNest 10 (const push1)
+          (mkPushArray (Z :. 10) (\ (Z :. i) -> x + i * 10))
+
+-- ** Vanilla nikola:
+
+push1 :: C.Exp Int32 -> Array PSH (Z :. C.Exp Ix) (C.Exp Int32)
+push1 x = mkPushArray (Z :. 10) (\ (Z :. i) -> x + fromInt i)
+
+-- * Compiled. Doesn't seem to work, probably due to uninitialized CUDA Ctx.
+-- Does however work if you just ask ghci for the expression eg. "compile map1"
+-- after running 'initializeCUDACtx'.
+
+compMap1 :: Int32 -> R.Array R.CUF R.DIM2 Int32
+compMap1 = compile map1
+compMap2 :: Int32 -> R.Array R.CUF R.DIM2 Int32
+compMap2 = compile map2
+
+-- Random rants below:
 
 {-
 
@@ -63,9 +122,9 @@ f x = if p x then g x
 -- allocFoo n =
 
 -- Experiment with recursion detection
-fooRec :: Exp Int32 -> Exp Int32
-fooRec x = let fix x' = if x' ==* 1 then 1 else x + ({- fooRec -}(x' - 1))
-            in fix x
+-- fooRec :: Exp Int32 -> Exp Int32
+-- fooRec x = let fix x' = if x' ==* 1 then 1 else x + ({- fooRec -}(x' - 1))
+--            in fix x
 
 -- ^ loops forever. I don't know exactly whether or not Nikola discovers the
 -- sharing but fails to act on it properly, or ..
@@ -97,8 +156,3 @@ unfoldN ::
 unfoldN n f xs =
 -}
 
-{-
-
-* tests are in ghciscript.hs
-
--}

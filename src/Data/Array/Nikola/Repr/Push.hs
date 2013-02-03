@@ -22,6 +22,7 @@ module Data.Array.Nikola.Repr.Push (
 
     mkPushArray,
     unfoldPushArray,
+    mapNest,
     push
   ) where
 
