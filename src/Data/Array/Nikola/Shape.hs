@@ -80,11 +80,13 @@ class (Typeable sh) => Shape sh where
     -- | Shape-polymorphic for (plc: peculiarly similar to parfor..)
     for :: sh -> P sh
 
+    {-
     -- | Sequentially dependent for loop
     seqfor :: sh -> P sh
 
     -- | Shape-polymorphic parallel for
     parfor :: sh -> P sh
+    -}
 
 -- | An index of dimension zero
 data Z = Z
@@ -114,10 +116,11 @@ instance Shape Z where
 
     for _ = return Z
 
+{-
     seqfor _ = return Z
 
     parfor _ = return Z
-
+-}
 -- | Our index type, used for both shapes and indices.
 infixl 3 :.
 
@@ -163,11 +166,12 @@ instance (Shape sh, IsElem (Exp t Ix)) => Shape (sh :. Exp t Ix) where
         shift $ \k -> do
         p <- reset $ extendVarTypes [(v, ScalarT tau)] $
                      k (is:.E (VarE v))
-        return $ ForE ParFor [v] [unE n] p
+        return $ ForE [v] [unE n] p
       where
         tau :: ScalarType
         tau = typeOf (undefined :: Exp t Ix)
 
+{-
     seqfor (sh:.(n :: Exp t Ix)) = do
         is <- parfor sh
         v  <- gensym "i"
@@ -193,6 +197,7 @@ instance (Shape sh, IsElem (Exp t Ix)) => Shape (sh :. Exp t Ix) where
       where
         tau :: ScalarType
         tau = typeOf (undefined :: Exp t Ix)
+-}
 
 -- Common dimensions
 type DIM0 t = Z

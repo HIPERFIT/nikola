@@ -61,7 +61,7 @@ mkPushArray :: forall sh a . (Shape sh)
 mkPushArray sh f = APush sh m
   where
     m :: P (sh, a)
-    m = do  i <- parfor sh
+    m = do  i <- {-par-}for sh
             return (i, f i)
 
 -- | Construct a push array from a seed and a successor function.
@@ -80,7 +80,7 @@ unfoldPushArray sh x f = APush sh m
     m = shift $ \k -> do -- k may for instance be the contents of loadP..
       vX <- gensym "x"
       loop <- reset $ do
-        i <- seqfor sh
+        i <- {-seq-}for sh
         body <- k (i, varE $ V vX)
         return $ (bindE vX tau (ReturnE $ unE $ f i (varE $ V vX)) body)
       return $ bindE vX tau (ReturnE $ unE x) loop

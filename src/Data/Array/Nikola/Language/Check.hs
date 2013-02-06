@@ -432,7 +432,7 @@ inferExp = go
         checkEqT tau_f (FunT [ScalarT tau_x] (ScalarT (TupleT [BoolT, tau_x])))
         return (ScalarT tau_x)
 
-    go (ForE _ vs es prog) = do
+    go (ForE vs es prog) = do
         taus <- mapM inferExp es
         extendVarTypes (vs `zip` taus) $
             checkExp prog (MT unitT)
@@ -466,8 +466,8 @@ checkTraverseFam trav ExpA (BindE v tau p1 p2) =
     BindE v tau <$> trav ExpA p1
                 <*> extendVarTypes [(v, tau)] (trav ExpA p2)
 
-checkTraverseFam trav ExpA (ForE isPar vs es p) =
-    ForE isPar vs <$> traverse (trav ExpA) es
+checkTraverseFam trav ExpA (ForE vs es p) =
+    ForE vs <$> traverse (trav ExpA) es
                   <*> extendVarTypes (vs `zip` repeat ixT) (trav ExpA p)
 
 checkTraverseFam trav w a =

@@ -347,12 +347,6 @@ compileExp (SeqE m1 m2) = do
     compileExp m1
     compileExp m2
 
-{- Old relic.
-compileExp (ParE m1 m2) = do
-    compileExp m1
-    compileExp m2
-    -}
-
 compileExp (BindE v tau m1 m2) = do
     ce1 <- compileExp m1
     extendVarTypes [(v, tau)] $ do
@@ -472,6 +466,8 @@ compileExp (IterateWhileE n (LamE [(x, tau)] e) x0) = do
 compileExp e@(IterateWhileE {}) =
     faildoc $ nest 2 $ text "Cannot compile:" </> ppr e
 
+compileExp (ForE vs es m) = error "Not implemented yet"
+{- Here we need to do lots of changes:
 compileExp (ForE forloop vs es m) = do
     dialect  <- fromLJust fDialect <$> getFlags
     tau      <- extendVarTypes (vs `zip` repeat ixT) $
@@ -637,6 +633,7 @@ compileExp (ForE forloop vs es m) = do
 
     gridHeight :: String
     gridHeight = "__gridHeight"
+    -}
 
 compileExp SyncE = do
     dialect <- fromLJust fDialect <$> getFlags

@@ -38,12 +38,12 @@ cse ExpA e =
                      <*> inNewScope False (go ExpA e2)
                      <*> inNewScope False (go ExpA e3)
 
-    go ExpA (ForE isPar vs es body) = do
+    go ExpA (ForE vs es body) = do
         es'   <- mapM (go ExpA) es
         body' <- extendVarTypes (vs `zip` repeat ixT) $
                  inNewScope False $
                  go ExpA body
-        return $ ForE isPar vs es' body'
+        return $ ForE vs es' body'
 
     go ExpA e = do
         e'        <- checkTraverseFam go ExpA e
