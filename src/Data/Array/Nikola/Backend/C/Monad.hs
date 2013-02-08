@@ -30,6 +30,8 @@ module Data.Array.Nikola.Backend.C.Monad (
     CudaWorkBlock(..),
 
     C(..),
+    CExecMode(..),
+    MonadReader(..),
     CEnv(..),
     defaultCEnv,
     runC,
@@ -69,6 +71,7 @@ module Data.Array.Nikola.Backend.C.Monad (
 import Control.Applicative (Applicative,
                             (<$>))
 import Control.Monad.Exception
+import Control.Monad.Reader
 import Control.Monad.State
 import Data.List (foldl')
 import qualified Data.Map as Map
@@ -166,6 +169,9 @@ data CudaWorkBlock = CudaWorkBlock
                                    -- the number of processed blocks.
     }
 
+data CExecMode = CSeqPar | CSeq
+  deriving (Eq, Show)
+
 -- The state used by the C code generation monad
 data CEnv = CEnv
   {  cFlags :: Flags
@@ -185,6 +191,8 @@ data CEnv = CEnv
   ,  cTypedefs   :: [C.Definition]
   ,  cPrototypes :: [C.Definition]
   ,  cGlobals    :: [C.Definition]
+
+  ,  cExecmode   :: CExecMode
 
   ,  cParams    :: [C.Param]
   ,  cLocals    :: [C.InitGroup]
@@ -212,6 +220,8 @@ defaultCEnv flags = CEnv
   ,  cPrototypes = []
   ,  cGlobals    = []
 
+  ,  cExecmode = CSeqPar
+
   ,  cParams    = []
   ,  cLocals    = []
   ,  cStms      = []
@@ -225,6 +235,16 @@ newtype C a = C { unC :: StateT CEnv (ExceptionT IO) a }
             MonadException,
             MonadIO,
             MonadState CEnv)
+
+instance MonadReader CExecMode (C :: * -> *) where
+  ask = gets cExecmode
+  local mod act = do
+    em <- gets cExecmode
+    modify $ \s -> s{cExecmode = mod $ cExecmode s}
+    r <- act
+    modify $ \s -> s{cExecmode = em}
+    return r
+  reader f = f <$> ask
 
 runC :: C a -> CEnv -> IO (a, CEnv)
 runC m s = do

@@ -347,6 +347,9 @@ compileExp (SeqE m1 m2) = do
     compileExp m1
     compileExp m2
 
+compileExp (SequentialExecE e) =
+    local (const CSeq) (compileExp e)
+
 compileExp (BindE v tau m1 m2) = do
     ce1 <- compileExp m1
     extendVarTypes [(v, tau)] $ do
@@ -466,9 +469,8 @@ compileExp (IterateWhileE n (LamE [(x, tau)] e) x0) = do
 compileExp e@(IterateWhileE {}) =
     faildoc $ nest 2 $ text "Cannot compile:" </> ppr e
 
-compileExp (ForE vs es m) = error "Not implemented yet"
-{- Here we need to do lots of changes:
-compileExp (ForE forloop vs es m) = do
+compileExp (ForE vs es m) = do
+    forloop <- ask
     dialect  <- fromLJust fDialect <$> getFlags
     tau      <- extendVarTypes (vs `zip` repeat ixT) $
                 inferExp m
@@ -478,7 +480,8 @@ compileExp (ForE forloop vs es m) = do
         go dialect forloop (vs `zip` es) idxs cvresult
     return cvresult
   where
-    compileLoop :: Dialect -> ForLoop -> C () -> C ()
+    compileLoop :: Dialect -> CExecMode -> C () -> C ()
+    {-
     compileLoop CUDA IrregParFor mloop = do
         loop         <- inNewBlock_ mloop
         idxs         <- getIndices
@@ -540,11 +543,12 @@ compileExp (ForE forloop vs es m) = do
         whileTrue act = do
             body <- inNewBlock_ act
             addStm [cstm|while (1) { $items:body }|]
+    -}
 
     compileLoop _ _ mloop =
         mloop
 
-    go :: Dialect -> ForLoop -> [(Var, Exp)] -> [Idx] -> CExp -> C ()
+    go :: Dialect -> CExecMode -> [(Var, Exp)] -> [Idx] -> CExp -> C ()
     go _ _ _ [] _ =
         fail "compileFor: the impossible happened!"
 
@@ -552,6 +556,7 @@ compileExp (ForE forloop vs es m) = do
         cresult <- compileExp m
         assignC cvresult cresult
 
+    {-
     go CUDA IrregParFor ((v@(Var i),bound):is) (idx:idxs) cresult = do
         useIndex (idx,bound)
         let cv =  ScalarCE [cexp|$id:i|]
@@ -563,6 +568,7 @@ compileExp (ForE forloop vs es m) = do
         addLocal [cdecl|const $ty:cIdxT $id:i = $(idxInit idx);|]
         body <- inNewBlock_ $ go CUDA IrregParFor is idxs cresult
         addStm [cstm|if ($id:i < $id:cbound) { $items:body } |]
+    -}
 
     go dialect forloop ((v@(Var i),bound):is) (idx:idxs) cresult = do
         useIndex (idx,bound)
@@ -571,7 +577,7 @@ compileExp (ForE forloop vs es m) = do
         extendVarTypes [(v, ixT)] $ do
         extendVarTrans [(v, cv)] $ do
         body <- inNewBlock_ $ go dialect forloop is idxs cresult
-        when (isParFor forloop && dialect == OpenMP) $
+        when (CSeqPar == forloop && dialect == OpenMP) $
             addStm [cstm|$pragma:("omp parallel for")|]
         addStm [cstm|for ($ty:cIdxT $id:i = $(idxInit idx);
                           $id:i < $cbound;
@@ -579,12 +585,14 @@ compileExp (ForE forloop vs es m) = do
                      { $items:body }
                     |]
 
-    allIdxs :: Dialect -> ForLoop -> [Idx]
-    allIdxs CUDA ParFor =
+    allIdxs :: Dialect -> CExecMode -> [Idx]
+    allIdxs CUDA CSeqPar =
         map CudaThreadIdx [CudaDimX, CudaDimY, CudaDimZ] ++ repeat CIdx
 
+    {-
     allIdxs CUDA IrregParFor =
         map IrregCudaThreadIdx [CudaDimX, CudaDimY, CudaDimZ] ++ repeat CIdx
+    -}
 
     allIdxs _ _ =
         repeat CIdx
@@ -633,7 +641,6 @@ compileExp (ForE forloop vs es m) = do
 
     gridHeight :: String
     gridHeight = "__gridHeight"
-    -}
 
 compileExp SyncE = do
     dialect <- fromLJust fDialect <$> getFlags

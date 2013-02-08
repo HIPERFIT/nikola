@@ -83,6 +83,7 @@ instance Load r sh e => Load (I r) sh e where
         p2  <- reset $ k ()
         return $ p1' `seqE` p2
 -}
+
 -- Traverse an expression and rewrite all parallel loops into irregular parallel
 -- loops.
 {-
