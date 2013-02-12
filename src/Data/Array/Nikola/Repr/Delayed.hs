@@ -53,7 +53,7 @@ instance Source D a where
 
 instance Shape sh => Load D sh e where
     loadP (ADelayed sh f) marr = do
-        p1 <- reset $ do  i <- {-par-}for sh
+        p1 <- reset $ do  i <- parfor sh
                           unsafeWriteMArray marr i (f i)
                           return $ ReturnE UnitE
         seqK p1 ()

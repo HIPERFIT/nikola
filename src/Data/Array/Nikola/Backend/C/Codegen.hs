@@ -347,8 +347,11 @@ compileExp (SeqE m1 m2) = do
     compileExp m1
     compileExp m2
 
-compileExp (SequentialExecE e) =
-    local (const CSeq) (compileExp e)
+{- Old relic.
+compileExp (ParE m1 m2) = do
+    compileExp m1
+    compileExp m2
+    -}
 
 compileExp (BindE v tau m1 m2) = do
     ce1 <- compileExp m1
@@ -469,8 +472,15 @@ compileExp (IterateWhileE n (LamE [(x, tau)] e) x0) = do
 compileExp e@(IterateWhileE {}) =
     faildoc $ nest 2 $ text "Cannot compile:" </> ppr e
 
-compileExp (ForE vs es m) = do
-    forloop <- ask
+
+-- Switch to sequential execution. The closest enclosing parseq-for-loop will detect this and operate in parallel
+compileExp (SequentialExecE e) = do
+  setExec CSeq
+  compileExp e
+
+compileExp (ForE forloop' vs es m) = do
+    seq <- getExec
+    let forloop = if seq == CSeq then SeqParFor else forloop'
     dialect  <- fromLJust fDialect <$> getFlags
     tau      <- extendVarTypes (vs `zip` repeat ixT) $
                 inferExp m
@@ -478,9 +488,16 @@ compileExp (ForE vs es m) = do
     let idxs =  allIdxs dialect forloop
     compileLoop dialect forloop $
         go dialect forloop (vs `zip` es) idxs cvresult
+
+    -- Reset mode to SeqPar if contents are sequential and if this ForLoop was
+    -- ParSeqFor.  If this forloop was a SeqParFor rather than a ParSeqFor,
+    -- sequentialism needs to flow out to the next enclosing ParSeqFor.
+    seq' <- getExec
+    when (seq' == CSeq && isParFor forloop) $ setExec CSeqPar
+
     return cvresult
   where
-    compileLoop :: Dialect -> CExecMode -> C () -> C ()
+    compileLoop :: Dialect -> ForLoop -> C () -> C ()
     {-
     compileLoop CUDA IrregParFor mloop = do
         loop         <- inNewBlock_ mloop
@@ -548,7 +565,7 @@ compileExp (ForE vs es m) = do
     compileLoop _ _ mloop =
         mloop
 
-    go :: Dialect -> CExecMode -> [(Var, Exp)] -> [Idx] -> CExp -> C ()
+    go :: Dialect -> ForLoop -> [(Var, Exp)] -> [Idx] -> CExp -> C ()
     go _ _ _ [] _ =
         fail "compileFor: the impossible happened!"
 
@@ -568,7 +585,7 @@ compileExp (ForE vs es m) = do
         addLocal [cdecl|const $ty:cIdxT $id:i = $(idxInit idx);|]
         body <- inNewBlock_ $ go CUDA IrregParFor is idxs cresult
         addStm [cstm|if ($id:i < $id:cbound) { $items:body } |]
-    -}
+        -}
 
     go dialect forloop ((v@(Var i),bound):is) (idx:idxs) cresult = do
         useIndex (idx,bound)
@@ -577,7 +594,7 @@ compileExp (ForE vs es m) = do
         extendVarTypes [(v, ixT)] $ do
         extendVarTrans [(v, cv)] $ do
         body <- inNewBlock_ $ go dialect forloop is idxs cresult
-        when (CSeqPar == forloop && dialect == OpenMP) $
+        when (isParFor forloop && dialect == OpenMP) $
             addStm [cstm|$pragma:("omp parallel for")|]
         addStm [cstm|for ($ty:cIdxT $id:i = $(idxInit idx);
                           $id:i < $cbound;
@@ -585,14 +602,14 @@ compileExp (ForE vs es m) = do
                      { $items:body }
                     |]
 
-    allIdxs :: Dialect -> CExecMode -> [Idx]
-    allIdxs CUDA CSeqPar =
+    allIdxs :: Dialect -> ForLoop -> [Idx]
+    allIdxs CUDA ParSeqFor =
         map CudaThreadIdx [CudaDimX, CudaDimY, CudaDimZ] ++ repeat CIdx
 
     {-
     allIdxs CUDA IrregParFor =
         map IrregCudaThreadIdx [CudaDimX, CudaDimY, CudaDimZ] ++ repeat CIdx
-    -}
+        -}
 
     allIdxs _ _ =
         repeat CIdx

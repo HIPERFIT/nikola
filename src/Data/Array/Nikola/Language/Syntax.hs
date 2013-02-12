@@ -46,6 +46,8 @@ module Data.Array.Nikola.Language.Syntax (
     flattenT,
 
     Exp(..),
+    ForLoop(..),
+    isParFor,
 
     isAtomicE,
 
@@ -284,6 +286,7 @@ data Exp = VarE Var
 
          | ReturnE Exp
          | SeqE Exp Exp
+         -- | ParE Exp Exp
          | BindE Var Type Exp Exp
 
          | AllocE Type [Exp]
@@ -297,38 +300,22 @@ data Exp = VarE Var
 
          -- | Mark an expression for sequential execution.
          | SequentialExecE Exp
-
-         -- | Only one kind of for-loop. The placement of SequentialExecE
-         -- determines the boundary between sequential and parallel execution.
-         | ForE [Var] [Exp] Exp
-         -- ^ ... But this is not inherently safe. A for-loop may have
-         -- cross-iteration data dependencies, making it inherently sequential.
-         -- This means that eg. unfoldPushArray would have to conservatively be
-         -- wrapped in SequentialExecE, even though there might be some nested
-         -- parallelism to be exploited.  This would not be a problem if Nikola
-         -- had FoldE/MapE/UnfoldE primitives instead of for loops.  Initially,
-         -- we can just stick with this. If time permits, we can ditch for
-         -- loops.
+         | ForE ForLoop [Var] [Exp] Exp
 
          | SyncE
 
-         -- Even though Nikola appears to have no concept of arrays in it's
-         -- core AST, it seems to creep in here through DelayedE. Or am I
-         -- mistaken?
          | DelayedE (R Exp Exp)
   deriving (Eq, Ord, Typeable)
 
-{-
-data ForLoop = SeqFor
-             | ParFor
-             | IrregParFor
+data ForLoop = SeqParFor -- For loops that may contain parallelism, but must themselves be executed in sequentially.
+             | ParSeqFor -- For loops that may both contain parallelism and be executed in parallel.
+          -- | IrregParFor
   deriving (Eq, Ord, Typeable)
 
 isParFor :: ForLoop -> Bool
-isParFor SeqFor      = False
-isParFor ParFor      = True
-isParFor IrregParFor = True
--}
+isParFor SeqParFor      = False
+isParFor ParSeqFor      = True
+-- isParFor IrregParFor = True
 
 instance Num Exp where
     e1 + e2 = BinopE AddN e1 e2
@@ -383,6 +370,13 @@ seqE (SeqE m1 m2)        m3 = seqE m1 (seqE m2 m3)
 seqE (LetE v tau _ e m1) m2 = letE v tau e (seqE m1 m2)
 seqE (BindE v tau m1 m2) m3 = bindE v tau m1 (seqE m2 m3)
 seqE m1                  m2 = SeqE m1 m2
+
+{- Old relic
+parE :: Exp -> Exp -> Exp
+parE (ReturnE {}) m  = m
+parE (ParE m1 m2) m3 = parE m1 (parE m2 m3)
+parE m1           m2 = ParE m1 m2
+-}
 
 bindE :: Var -> Type -> Exp -> Exp -> Exp
 bindE v  tau  (SeqE m1 m2) m3          = seqE m1 (bindE v tau m2 m3)
@@ -819,9 +813,9 @@ pprMonadic _ e =
         [text "write" <+> pprPrec appPrec1 v <>
          brackets (ppr idx) <+> pprPrec appPrec1 x]
 
-    go (ForE vs es prog) =
+    go (ForE forloop vs es prog) =
         [align $ nest 4 $
-         text "for" <>
+         ppr forloop <>
          parens (tuple (replicate (length vs) (text "0")) <+> text "<=" <+>
                  tuple (map ppr vs) <+> text "<" <+>
                  tuple (map ppr es)) </>
@@ -833,9 +827,12 @@ pprMonadic _ e =
     go e =
         [ppr e]
 
-{-
 instance Pretty ForLoop where
-    ppr SeqFor      = text "for"
-    ppr ParFor      = text "parfor"
-    ppr IrregParFor = text "iparfor"
--}
+    ppr SeqParFor      = text "for"
+    ppr ParSeqFor      = text "parfor"
+    -- ppr IrregParFor = text "iparfor"
+
+-- random experiments
+
+-- data dependent allocation
+

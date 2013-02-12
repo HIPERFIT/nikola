@@ -18,7 +18,7 @@
 module Data.Array.Nikola.Language.Optimize
     ( optimizeHostProgram
     , liftHostProgram
-    -- , mergeParfor
+    , mergeParfor
     , whenE
     , bind
     , binds
@@ -156,16 +156,11 @@ instance MustEq Exp where
 
 -- Kernel construction
 
--- | We need a different way of constructing kernels, as we can no longer
--- distinguish loops so readily.  Maybe we could initially just make the outer
--- seqpar operations host code, and the parseq bits into kernels?.. Then we
--- might look at possibilities for fusing kernels afterwards based on memory
--- allocation needs.
 constructKernels :: AST a -> a -> R r a
 constructKernels = go
   where
     go :: AST a -> a -> R r a
-    go ExpA e@(ForE {-forloop-} _ _ _) {-| isParFor forloop-} = do
+    go ExpA e@(ForE forloop _ _ _) | isParFor forloop = do
         return (CallE (LamE [] e) [])
 
     go w a = checkTraverseFam go w a
@@ -197,7 +192,6 @@ shareBindings ExpA (IfThenElseE test (LetE v1 tau1 occ1 e1a e1b) (LetE v2 tau2 o
 shareBindings w a = traverseFam shareBindings w a
 
 -- Merge parallel for loops
-{- plc: disabled, as it's not used anywhere and conflicts with our parfor amputation.
 mergeParfor :: forall a m . (MonadSubst Var Var m, MonadSubst Var Exp m) => AST a -> a -> m a
 mergeParfor VarA v        = lookupSubst VarA v VarA (return v)
 mergeParfor ExpA (VarE v) = lookupSubst VarA v ExpA (VarE <$> mergeParfor VarA v)
@@ -209,11 +203,11 @@ mergeParfor ExpA (LamE vtaus p) = do
     go [] =
         return []
 
-    go ((seq1, ForE ParFor [v1] [e1] p1) : (seq2, ForE ParFor [v2] [e2] p2) : ms) = do
+    go ((seq1, ForE ParSeqFor [v1] [e1] p1) : (seq2, ForE ParSeqFor [v2] [e2] p2) : ms) = do
         insertSubst VarA v2 VarA v1
         let p1' = whenE ((E . VarE) v1 <* (E e1 :: E.Exp t Int32)) p1
         let p2' = whenE ((E . VarE) v1 <* (E e2 :: E.Exp t Int32)) p2
-        go ((seq1, ForE ParFor [v1] [BinopE MaxO e1 e2] (sync p1' p2')) : ms)
+        go ((seq1, ForE ParSeqFor [v1] [BinopE MaxO e1 e2] (sync p1' p2')) : ms)
       where
         sync = case seq2 of
                  SeqM -> syncE
@@ -226,7 +220,6 @@ mergeParfor ExpA (LamE vtaus p) = do
         return $ (s,m') : ms'
 
 mergeParfor w      a    = traverseFam mergeParfor w a
--}
 
 whenE :: E.Exp t a -> Exp -> Exp
 whenE e p = IfThenElseE (unE e) p (ReturnE UnitE)
@@ -339,7 +332,7 @@ vars = go
     go ExpA (LamE vtaus e)      = bindVars (map fst vtaus) (go ExpA e)
     go ExpA (BindE v _ p1 p2)   = go ExpA p1 `mappend`
                                   bindVar v (go ExpA p2)
-    go ExpA (ForE vs es p)    = foldMap (go ExpA) es `mappend`
+    go ExpA (ForE _ vs es p)    = foldMap (go ExpA) es `mappend`
                                   bindVars vs (go ExpA p)
     go w    a                   = foldFam go w a
 
@@ -414,9 +407,9 @@ subst = go
                                                 bind VarA w v $ \v' -> do
                                                 BindE v' tau p1' <$> go VarA w ExpA p2
 
-    go VarA w ExpA (ForE vs es p)   = do  es' <- traverse (go VarA w ExpA) es
-                                          binds VarA w vs $ \vs' -> do
-                                          ForE vs' es' <$> go VarA w ExpA p
+    go VarA w ExpA (ForE floop vs es p)   = do  es' <- traverse (go VarA w ExpA) es
+                                                binds VarA w vs $ \vs' -> do
+                                                ForE floop vs' es' <$> go VarA w ExpA p
 
     go w1 w2 w a = traverseFam (go w1 w2) w a
 
@@ -534,10 +527,10 @@ class (Applicative m, Monad m, MonadIO m) => MonadInterp m a where
     extendVars :: [(Var, a)] -> m b -> m b
 
 mergeBounds :: forall m . (MonadInterp m Range) => Traversal AST m
-mergeBounds ExpA (ForE vs es p) = do
+mergeBounds ExpA (ForE ParSeqFor vs es p) = do
     (ds, es')  <- unzip <$> mapM simplBound (vs `zip` es)
     extendVars (vs `zip` ds) $ do
-    ForE vs es' <$> (fromMnf <$> go (toMnf p))
+    ForE ParSeqFor vs es' <$> (fromMnf <$> go (toMnf p))
   where
     simplBound :: (Var, Exp) -> m (Range, Exp)
     simplBound (_, e) = do

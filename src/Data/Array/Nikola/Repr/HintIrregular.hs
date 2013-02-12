@@ -15,15 +15,14 @@
 -- Portability : non-portable
 
 module Data.Array.Nikola.Repr.HintIrregular (
-    I,
-    Array(..),
-    MArray(..),
-
-    hintIrregular
+--    I,
+--    Array(..),
+--    MArray(..),
+--
+--    hintIrregular
   ) where
 
--- plc: I'm not entirely sure what's going to happen to this in light of the seqpar modification.
-
+{-
 import Control.Applicative
 import Data.Traversable
 import Data.Typeable (Typeable)
@@ -74,7 +73,6 @@ instance Target r e => Target (I r) e where
     unsafeFreezeMArray (MIrregular marr) =
         AIrregular <$> unsafeFreezeMArray marr
 
-{-
 instance Load r sh e => Load (I r) sh e where
     loadP (AIrregular arr) marr = do
         shift $ \k -> do
@@ -82,14 +80,12 @@ instance Load r sh e => Load (I r) sh e where
         p1' <- checkTraverseFam markLoopsAsIrregular ExpA p1
         p2  <- reset $ k ()
         return $ p1' `seqE` p2
--}
 
 -- Traverse an expression and rewrite all parallel loops into irregular parallel
 -- loops.
-{-
 markLoopsAsIrregular :: MonadCheck m => AST a -> a -> m a
 markLoopsAsIrregular ExpA (ForE ParFor is es p) =
-    ForE {-IrregParFor-} is <$> traverse (markLoopsAsIrregular ExpA) es
+    ForE IrregParFor is <$> traverse (markLoopsAsIrregular ExpA) es
                         <*> markLoopsAsIrregular ExpA p
 
 -- The default traversal barfs if it sees a DelayedE, but we don't care.
@@ -98,7 +94,7 @@ markLoopsAsIrregular ExpA e@(DelayedE {}) =
 
 markLoopsAsIrregular w a =
     checkTraverseFam markLoopsAsIrregular w a
--}
 
 hintIrregular :: Array r sh e -> Array (I r) sh e
 hintIrregular = AIrregular
+-}
