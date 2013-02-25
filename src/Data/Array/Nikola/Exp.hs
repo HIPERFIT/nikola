@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -58,11 +59,14 @@ module Data.Array.Nikola.Exp (
 import Prelude hiding ((^), fromIntegral, max, min)
 import qualified Prelude as P
 
+import Control.Monad.Identity
+
 import Data.Bits (Bits)
 import Data.Int
 import Data.Typeable (Typeable)
 import Data.Word
 
+import Data.Array.Nikola.Language.Generic
 import Data.Array.Nikola.Language.Monad
 import qualified Data.Array.Nikola.Language.Syntax as S
 import Data.Array.Nikola.Language.Syntax hiding (Exp, Var)
@@ -211,10 +215,10 @@ class Bits a => IsBits a where
 
     (|*) :: Bits a => Exp t a -> Exp t a -> Exp t a
     e1 |* e2 = binop (BinopE OrB) e1 e2
-    
+
     xor :: Bits a => Exp t a -> Exp t a -> Exp t a
     e1 `xor` e2 = binop (BinopE XorB) e1 e2
-    
+
     shiftR :: Bits a => Exp t a -> Exp t a -> Exp t a
     e1 `shiftR` e2 = binop (BinopE ShiftRB) e1 e2
 

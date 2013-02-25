@@ -423,6 +423,16 @@ compileExp (WriteE arr idx e) = do
 
 -- A bit disgusting, but we relay on the fact that f is a lambda. Our
 -- combinators guarantee that this will be the case
+-- PLC: except it isn't? Data.Array.Nikola.Combinators.iterate wraps in delayE :-(, and cacheExp will happily turn the DelayedE into a let-binding.
+compileExp (IterateE n (DelayedE _) x0) = do
+    faildoc $ nest 2 $ text "Cannot compile DelayedE inside Iterate. You probably need to 'detectSharing'."
+
+-- dybberplc: Here we feebly try to repair the broken LamE invariant:
+compileExp (IterateE n fv@(VarE f) x0) = do
+  x <- gensym "x"
+  tau <- inferExp fv
+  compileExp (IterateE n (LamE [(Var x,tau)] (AppE fv [VarE $ Var x])) x0)
+
 compileExp (IterateE n (LamE [(x, tau)] e) x0) = do
     i   <- gensym "i"
     cn  <- compileExp n
@@ -442,7 +452,7 @@ compileExp (IterateE n (LamE [(x, tau)] e) x0) = do
     return cx
 
 compileExp e@(IterateE {}) =
-    faildoc $ nest 2 $ text "Cannot compile:" </> ppr e
+    faildoc $ nest 2 $ text "Cannot compile (Expected LamE):" </> ppr e
 
 compileExp (IterateWhileE n (LamE [(x, tau)] e) x0) = do
     i     <- gensym "i"
@@ -470,7 +480,7 @@ compileExp (IterateWhileE n (LamE [(x, tau)] e) x0) = do
     return cx
 
 compileExp e@(IterateWhileE {}) =
-    faildoc $ nest 2 $ text "Cannot compile:" </> ppr e
+    faildoc $ nest 2 $ text "Cannot compile (Expected LamE:" </> ppr e
 
 
 -- Switch to sequential execution. The closest enclosing parseq-for-loop will detect this and operate in parallel
@@ -480,6 +490,7 @@ compileExp (SequentialExecE e) = do
 
 compileExp (ForE forloop' vs es m) = do
     seq <- getExec
+    -- SeqParFor | ParSeqFor
     let forloop = if seq == CSeq then SeqParFor else forloop'
     dialect  <- fromLJust fDialect <$> getFlags
     tau      <- extendVarTypes (vs `zip` repeat ixT) $

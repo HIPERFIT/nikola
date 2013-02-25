@@ -22,6 +22,7 @@ module Data.Array.Nikola.Shape (
     Shape(..),
     Z(..),
     (:.)(..),
+    (:+:),
 
     Rsh,
 
@@ -86,6 +87,8 @@ class (Typeable sh) => Shape sh where
     -- | Shape-polymorphic parallel for
     parfor :: sh -> P sh
 
+    combineSh :: Shape sh' => sh' -> sh -> sh' :+: sh
+
 -- | An index of dimension zero
 data Z = Z
   deriving (Show, Read, Eq, Ord, Typeable)
@@ -117,6 +120,8 @@ instance Shape Z where
     seqfor _ = return Z
 
     parfor _ = return Z
+
+    combineSh x Z = x
 
 -- | Our index type, used for both shapes and indices.
 infixl 3 :.
@@ -194,6 +199,8 @@ instance (Shape sh, IsElem (Exp t Ix)) => Shape (sh :. Exp t Ix) where
         tau :: ScalarType
         tau = typeOf (undefined :: Exp t Ix)
 
+    combineSh x (ys :. y) = (combineSh x ys) :. y
+
 -- Common dimensions
 type DIM0 t = Z
 type DIM1 t = DIM0 t :. Exp t Ix
@@ -211,3 +218,12 @@ ix2 y x = Z :. y :. x
 type family Rsh a :: *
 type instance Rsh Z                = R.Z
 type instance Rsh (sh :. Exp t Ix) = Rsh sh R.:. Int
+
+-- :+: is a type function for adding shapes together.
+-- added by dybberplc
+type family (:+:) a b :: *
+type instance sh :+: Z = sh
+type instance sh :+: (sh' :. Exp t Ix) = (sh :+: sh') :. Exp t Ix
+
+-- to prove : (x+1) + y === (x + y) +1
+--

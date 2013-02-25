@@ -828,7 +828,7 @@ pprMonadic _ e =
         [ppr e]
 
 instance Pretty ForLoop where
-    ppr SeqParFor      = text "for"
+    ppr SeqParFor      = text "seqfor"
     ppr ParSeqFor      = text "parfor"
     -- ppr IrregParFor = text "iparfor"
 
