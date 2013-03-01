@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE GADTs #-}
 
 -- |
 -- Module      : Data.Array.Nikola.Combinators
@@ -26,14 +27,18 @@ import Prelude hiding (iterate)
 import Data.Int
 import Data.Typeable (Typeable)
 
+import Control.Monad.Identity
+
 import Data.Array.Nikola.Exp
 import Data.Array.Nikola.Language.Reify
 import Data.Array.Nikola.Language.Monad
 import Data.Array.Nikola.Language.Syntax hiding (Exp, Var)
+import qualified Data.Array.Nikola.Language.Syntax as S
 import Data.Array.Nikola.Repr.Push
 import Data.Array.Nikola.Repr.Delayed
 import Data.Array.Nikola.Shape
 import Data.Array.Nikola.Array
+import Data.Array.Nikola.Language.Generic
 
 -- | 'iterate n f x' iterates the function 'f' 'n' times with the initial value
 -- 'x'. GHC cannot in general tell that the 't' in 'Exp t Int32' is the same 't'
